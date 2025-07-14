@@ -1,0 +1,83 @@
+---
+title: "qbs101proj"
+output: pdf_document
+date: "2025-07-14"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+library(tidyr)
+library(dplyr)
+```
+
+
+```{r}
+install.packages("janitor") 
+library(janitor)
+```
+
+
+```{r}
+data <- read.csv("QBS103_GSE157103_genes.csv")
+meta <- read.csv("QBS103_GSE157103_series_matrix-1.csv")
+head(data)
+head(meta)
+```
+```{r}
+data_long <- pivot_longer( data = data,
+    cols = -X,  
+    names_to = "participant_id",
+    values_to = "expression"
+  )
+head(data_long)
+```
+
+```{r}
+mdata <- left_join(data_long, meta, by = "participant_id")
+head(mdata)
+```
+```{r}
+#transpose data so participant id is row, genes are columns
+trans <- as.data.frame(t(data))
+colnames(trans) <- trans[1,]
+trans <- trans[-1,]
+head(trans)
+
+
+```
+```{r}
+#select gene of interest: AAMP
+aamp<- trans['AAMP']
+aamp$participant_id <- rownames(aamp)
+head(aamp)
+
+```
+
+```{r}
+#join AAMP expression per participant with metadata
+aampm<- merge(aamp, meta, by = "participant_id")
+head(aampm)
+```
+
