@@ -37,6 +37,12 @@ library(dplyr)
 install.packages("janitor") 
 library(janitor)
 ```
+```{r}
+install.packages("hrbrthemes")
+library(hrbrthemes)
+library(ggplot2)
+
+```
 
 
 ```{r}
@@ -78,6 +84,37 @@ head(aamp)
 ```{r}
 #join AAMP expression per participant with metadata
 aampm<- merge(aamp, meta, by = "participant_id")
+#from RBlogger, Convert Multiple Columns to Numeric in R
+aampm <- aampm %>% mutate_at(c('AAMP'), as.numeric)
+aampm$ferritin.ng.ml. <- as.numeric(aampm$ferritin.ng.ml.)
 head(aampm)
+
+```
+
+
+```{r}
+#scatterplot of ferritin and expression
+ggplot(aampm, aes(x = AAMP,y = ferritin.ng.ml.)) +
+  geom_point() + 
+  theme_ipsum() +
+  ggtitle("AAMP expression vs. Ferritin") + 
+  theme(
+      plot.title = element_text(size=10)
+    )
+```
+```{r}
+ggplot(aampm, aes(x = AAMP)) +
+  geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.9) + 
+  theme_ipsum() +
+  ggtitle("AAMP expression levels") + 
+  theme(
+      plot.title = element_text(size=10)
+    )
+```
+
+```{r}
+ggplot(aampm,aes(x = AAMP,y = ,color = BP.Type)) +
+  # Add box plot
+  geom_boxplot() 
 ```
 
