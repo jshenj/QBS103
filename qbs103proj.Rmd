@@ -112,9 +112,19 @@ ggplot(aampm, aes(x = AAMP)) +
     )
 ```
 
+
 ```{r}
-ggplot(aampm,aes(x = AAMP,y = ,color = BP.Type)) +
+ggplot(aampm,aes(x = mechanical_ventilation,y = AAMP, fill = sex)) +
   # Add box plot
   geom_boxplot() 
+```
+```{r}
+#remove row with unknown gender
+aampm_filtered <- aampm[aampm$sex != " unknown", ]
+ggplot(aampm_filtered,aes(x = mechanical_ventilation,y = AAMP, fill = sex)) +
+  # Add box plot
+  geom_boxplot() 
+
+
 ```
 
