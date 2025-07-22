@@ -43,6 +43,9 @@ meta <- read.csv("QBS103_GSE157103_series_matrix-1.csv")
 head(data)
 head(meta)
 ```
+```{r}
+data$X
+```
 
 ```{r}
 #transpose to longer data so participant ID becomes column
@@ -71,6 +74,7 @@ head(trans)
 ```{r}
 #select gene of interest: AAMP
 aamp<- trans['AAMP']
+#create participant_id column based on rownames
 aamp$participant_id <- rownames(aamp)
 head(aamp)
 
@@ -93,6 +97,7 @@ ggplot(aampm, aes(x = AAMP,y = ferritin.ng.ml.)) +
   geom_point() + 
   theme_ipsum() +
   ggtitle("AAMP expression vs. Ferritin") + 
+
   theme(
       plot.title = element_text(size=10)
     )+ geom_smooth(method = "lm", se = FALSE, color = "blue")
@@ -114,5 +119,38 @@ aampm_filtered <- aampm[aampm$sex != " unknown", ]
 ggplot(aampm_filtered,aes(x = mechanical_ventilation,y = AAMP, fill = sex)) +
   # Add box plot
   geom_boxplot() 
+```
+```{r}
+library(rlang)
+```
+
+```{r}
+# Use trans (transposed data) as data and meta for metadata
+genScat <- function(gene, numeric, data, metadata) {
+  # select gene from data 
+  sel <- data[gene]
+  sel$participant_id <- rownames(sel)
+  
+  #merge with metadata 
+  selm<- merge(sel, meta, by = "participant_id")
+  
+  #convert Multiple Columns to Numeric in R, updated with Chatgpt innput on way to achieve this that is not deprecated (without mutate_at())
+  #access col names using strings with !!sym(Chatgpt)
+  selm <- selm %>% mutate(across(c(!!sym(gene), !!sym(numeric)), as.numeric))
+  
+  #plot gene expression vs. selected numeric
+  ggplot(selm, aes(x = !!sym(gene),y = !!sym(numeric))) +
+  geom_point() + 
+  theme_ipsum() +
+  ggtitle(paste(gene, "expression vs.", numeric))+ 
+
+  theme(
+      plot.title = element_text(size=10)
+    )+ geom_smooth(method = "lm", se = FALSE, color = "blue")
+}
+```
+
+```{r}
+genScat("ABCB10", "ferritin.ng.ml.", trans, meta)
 ```
 
