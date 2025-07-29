@@ -40,8 +40,8 @@ library(ggplot2)
 #load the data
 data <- read.csv("QBS103_GSE157103_genes.csv")
 meta <- read.csv("QBS103_GSE157103_series_matrix-1.csv")
-head(data)
-head(meta)
+#head(data)
+#head(meta)
 ```
 
 ```{r}
@@ -53,13 +53,13 @@ data_long <- pivot_longer( data = data,
     names_to = "participant_id",
     values_to = "expression"
   )
-head(data_long)
+#head(data_long)
 ```
 
 ```{r}
 # OLD: join data with metadata
 mdata <- left_join(data_long, meta, by = "participant_id")
-head(mdata)
+#head(mdata)
 ```
 
 ```{r}
@@ -67,7 +67,7 @@ head(mdata)
 trans <- as.data.frame(t(data))
 colnames(trans) <- trans[1,]
 trans <- trans[-1,]
-head(trans)
+#head(trans)
 ```
 
 ```{r}
@@ -75,7 +75,7 @@ head(trans)
 aamp<- trans['AAMP']
 #create participant_id column based on rownames
 aamp$participant_id <- rownames(aamp)
-head(aamp)
+#head(aamp)
 ```
 
 ```{r}
@@ -84,7 +84,7 @@ aampm<- merge(aamp, meta, by = "participant_id")
 #from RBlogger, Convert Multiple Columns to Numeric in R
 aampm <- aampm %>% mutate_at(c('AAMP'), as.numeric)
 aampm$ferritin.ng.ml. <- as.numeric(aampm$ferritin.ng.ml.)
-head(aampm)
+#head(aampm)
 
 ```
 
