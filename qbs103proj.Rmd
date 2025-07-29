@@ -43,11 +43,10 @@ meta <- read.csv("QBS103_GSE157103_series_matrix-1.csv")
 head(data)
 head(meta)
 ```
-```{r}
-data$X
-```
 
 ```{r}
+#OlD: first attempt at reformatting the data 
+
 #transpose to longer data so participant ID becomes column
 data_long <- pivot_longer( data = data,
     cols = -X,  
@@ -58,7 +57,7 @@ head(data_long)
 ```
 
 ```{r}
-# join data with metadata
+# OLD: join data with metadata
 mdata <- left_join(data_long, meta, by = "participant_id")
 head(mdata)
 ```
@@ -77,7 +76,6 @@ aamp<- trans['AAMP']
 #create participant_id column based on rownames
 aamp$participant_id <- rownames(aamp)
 head(aamp)
-
 ```
 
 ```{r}
@@ -96,7 +94,10 @@ head(aampm)
 ggplot(aampm, aes(x = AAMP,y = ferritin.ng.ml.)) +
   geom_point() + 
   theme_ipsum() +
-  ggtitle("AAMP expression vs. Ferritin") + 
+  ggtitle("AAMP expression vs. Ferritin Concentration") + 
+  
+  labs(x = "AAMP expression",
+    y = "Ferritin (ng per ml)")+
 
   theme(
       plot.title = element_text(size=10)
@@ -116,17 +117,18 @@ ggplot(aampm, aes(x = AAMP)) +
 ```{r}
 #remove row with unknown gender
 aampm_filtered <- aampm[aampm$sex != " unknown", ]
+#Create box plot
 ggplot(aampm_filtered,aes(x = mechanical_ventilation,y = AAMP, fill = sex)) +
-  # Add box plot
   geom_boxplot() 
 ```
 ```{r}
 library(rlang)
 ```
+STARTING TO WRITE FUNCTIONS HERE: 
 
 ```{r}
-# Use trans (transposed data) as data and meta for metadata
-genScat <- function(gene, numeric, data, metadata) {
+#reformat the given data and metadata to form used in plotting functions
+mergeData <- function(gene, numeric, data, metadata) {
   # select gene from data 
   sel <- data[gene]
   sel$participant_id <- rownames(sel)
@@ -134,10 +136,26 @@ genScat <- function(gene, numeric, data, metadata) {
   #merge with metadata 
   selm<- merge(sel, meta, by = "participant_id")
   
-  #convert Multiple Columns to Numeric in R, updated with Chatgpt innput on way to achieve this that is not deprecated (without mutate_at())
+  #convert Multiple Columns to Numeric in R, updated with Chatgpt input on way to achieve this that is not deprecated (without mutate_at())
   #access col names using strings with !!sym(Chatgpt)
-  selm <- selm %>% mutate(across(c(!!sym(gene), !!sym(numeric)), as.numeric))
-  
+  selm <- selm %>% 
+    mutate(across(c(!!sym(gene), !!sym(numeric)), as.numeric)) %>%
+    #remove row with unknown gender
+    filter(sex != " unknown")
+  return(selm)
+}
+
+Fdata <- mergeData("AAMP", "ferritin.ng.ml.", trans, meta)
+```
+```{r}
+head(Fdata)
+```
+
+```{r}
+genScat <- function(gene, numeric, selm) {
+  #selm = data after selected gene and merge
+  #gene and numeric are string variables
+
   #plot gene expression vs. selected numeric
   ggplot(selm, aes(x = !!sym(gene),y = !!sym(numeric))) +
   geom_point() + 
@@ -146,11 +164,94 @@ genScat <- function(gene, numeric, data, metadata) {
 
   theme(
       plot.title = element_text(size=10)
-    )+ geom_smooth(method = "lm", se = FALSE, color = "blue")
+    )+ 
+    #add line of best fit
+    geom_smooth(method = "lm", se = FALSE, color = "blue")
 }
 ```
 
 ```{r}
-genScat("ABCB10", "ferritin.ng.ml.", trans, meta)
+genScat("AAMP", "ferritin.ng.ml.", Fdata)
+```
+```{r}
+# generate boxplot using transposed, merged, filtered, and numeric data
+genBox <- function(gene, numeric, cat1, cat2, selm) {
+  #selm = data after selecting gene and merged
+  #All varialbles passed as strings (gene, numeric, cat1, cat2)
+  
+  ggplot(selm,aes(x = !!sym(cat1),y = !!sym(gene), fill = !!sym(cat2))) +
+  # Add box plot
+  geom_boxplot() + 
+  theme_ipsum()+ 
+  ggtitle(paste(gene, "expression across", cat1, "and", cat2, "patients"))+
+  theme(
+      plot.title = element_text(size=10)
+    )
+}
+```
+
+```{r}
+genBox('AAMP', "ferritin.ng.ml.", "mechanical_ventilation", "sex", Fdata)
+```
+```{r}
+genHist <- function(gene, selm) {
+  #selm = data after selecting gene and merged
+  #All variables passed as strings (gene)
+  
+  
+  ggplot(selm, aes(x = !!sym(gene))) +
+  geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.9) + 
+  theme_ipsum() +
+  ggtitle(paste("Frequency of", gene,"expression levels")) + 
+  theme(
+      plot.title = element_text(size=10)
+    )
+}
+```
+
+```{r}
+genHist("AAMP", Fdata)
+```
+```{r}
+#Edit of Merge Data function to accept list of genes instead of single gene
+mergeDatas <- function(genevec, numeric, data, metadata) {
+  # select gene from data 
+  sel <- data[, genevec]
+  sel$participant_id <- rownames(sel)
+  
+  #merge with metadata 
+  selm<- merge(sel, meta, by = "participant_id")
+  
+  #convert Multiple Columns to Numeric in R, updated with Chatgpt input on way to achieve this that is not deprecated (without mutate_at())
+  selm <- selm %>% 
+    mutate(across(all_of(c(genevec, numeric)), as.numeric)) %>%
+    #remove row with unknown gender
+    filter(sex != " unknown")
+  return(selm)
+}
+```
+
+
+```{r}
+#generates all plots using previously defined functions for each type of plot
+genAllPlots <- function(genevec, numeric, cat1, cat2, selm) {
+  #selm = data after selecting gene and merged
+  #genevec is vector of string names of genes
+  #Column variables passed as strings (gene)
+  
+  for (gene in genevec) {
+  #generate hist, scat, and box plots for each gene 
+    print(genHist(gene, selm))
+    print(genScat(gene, numeric, selm))
+    print(genBox(gene, numeric , cat1, cat2 , selm))
+    }
+}
+
+```
+
+```{r}
+genes = c("AAMP", "A2M")
+multigene_Fdata<- mergeDatas(genes, "ferritin.ng.ml.", trans, meta)
+genAllPlots(genes, "ferritin.ng.ml.", "mechanical_ventilation", "sex", multigene_Fdata)
 ```
 
