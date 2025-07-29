@@ -250,7 +250,7 @@ genAllPlots <- function(genevec, numeric, cat1, cat2, selm) {
 ```
 
 ```{r}
-genes = c("AAMP", "A2M")
+genes = c("AAMP", "A2M", "A1BG")
 multigene_Fdata<- mergeDatas(genes, "ferritin.ng.ml.", trans, meta)
 genAllPlots(genes, "ferritin.ng.ml.", "mechanical_ventilation", "sex", multigene_Fdata)
 ```
