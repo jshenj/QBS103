@@ -425,7 +425,7 @@ tdata <- Fdata %>%
 ```
 ```{r}
 #check for normality
-hist(tdata$lactate.mmol.l.)
+hist(tdata$ferritin.ng.ml.)
 #use median since numerics are non-normal (skewed)
 ```
 
