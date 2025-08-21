@@ -1,5 +1,5 @@
 ---
-title: "qbs101proj"
+title: "qbs103proj"
 output:  html_document
 date: "2025-07-14"
 ---
@@ -10,23 +10,6 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
 ```{r}
 library(tidyr)
 library(dplyr)
@@ -42,6 +25,11 @@ data <- read.csv("QBS103_GSE157103_genes.csv")
 meta <- read.csv("QBS103_GSE157103_series_matrix-1.csv")
 #head(data)
 #head(meta)
+```
+
+```{r}
+nrow(data)
+
 ```
 
 ```{r}
@@ -117,9 +105,30 @@ ggplot(aampm, aes(x = AAMP)) +
 ```{r}
 #remove row with unknown gender
 aampm_filtered <- aampm[aampm$sex != " unknown", ]
+
+#rename factors to proper capitalization
+aampm_filtered$mechanical_ventilation <- factor(
+  aampm_filtered$mechanical_ventilation,
+  levels = c(" no", " yes"),
+  labels = c("No", "Yes")
+)
+
+aampm_filtered$sex <- factor(
+  aampm_filtered$sex,
+  levels = c(" male", " female"),
+  labels = c("Male", "Female")
+)
+
 #Create box plot
 ggplot(aampm_filtered,aes(x = mechanical_ventilation,y = AAMP, fill = sex)) +
-  geom_boxplot() 
+  geom_boxplot() + 
+  theme_ipsum()+ 
+  ggtitle(paste('AAMP Expression Across Patients on Mechanical Ventilation'))+
+  labs(x = 'Mechanical ventilation?', fill = "Sex")+
+  theme(
+      plot.title = element_text(size=10)
+    )
+  
 ```
 ```{r}
 library(rlang)
@@ -253,5 +262,208 @@ genAllPlots <- function(genevec, numeric, cat1, cat2, selm) {
 genes = c("AAMP", "A2M", "A1BG")
 multigene_Fdata<- mergeDatas(genes, "ferritin.ng.ml.", trans, meta)
 genAllPlots(genes, "ferritin.ng.ml.", "mechanical_ventilation", "sex", multigene_Fdata)
+```
+NEED CHANGE CAPITALIZATION
+
+```{r}
+head(trans)
+```
+```{r}
+#select genes with most variance
+
+#resolving NA's through removal
+variance <- apply(as.matrix(data), 1, var, na.rm = TRUE)
+#resolving NAs by placing them last (chatgpt)
+heat_genes <- data[order(variance, decreasing = TRUE, na.last = TRUE), , drop = FALSE]
+heat_genes <- head(heat_genes, 10)
+top10 <- heat_genes$X
+
+#make data
+hdata<- mergeDatas(top10, "ferritin.ng.ml.", trans, meta)
+
+hcolumns <- c(top10, 'sex', 'mechanical_ventilation')
+
+#includes categoricals for annotations
+hdatae <- hdata %>%
+  select(all_of(hcolumns)) %>%
+  mutate(across(any_of(top10), ~ as.numeric(as.character(.x))))
+#clean factors
+hdatae$mechanical_ventilation <- factor(
+ hdatae$mechanical_ventilation,
+  levels = c(" no", " yes"),
+  labels = c("No", "Yes")
+)
+
+hdatae$sex <- factor(
+  hdatae$sex,
+  levels = c(" male", " female"),
+  labels = c("Male", "Female")
+)
+
+#select top10 genes from merged data and metadata
+#only numerics for heatmap 
+hdata <- hdata %>%
+  select(all_of(top10)) %>%
+  mutate(across(any_of(top10), ~ as.numeric(as.character(.x))))
+
+# Log2-normalize data for plotting
+hdata[top10] <- lapply(hdata[top10], log2)
+
+head(hdatae)
+```
+```{r}
+#install.packages('pheatmap')
+library(pheatmap)
+
+pheatmap(hdata,
+         clustering_distance_cols = 'euclidean',
+         clustering_distance_rows = 'euclidean',
+         show_rownames = FALSE,
+         border_color = NA)
+```
+```{r}
+mat <- hdata #make matrix for heatmap
+
+#annotation data (rownames = col for matrix)
+hmeta <- hdatae[, c("sex", "mechanical_ventilation")]
+rownames(hmeta) <- rownames(hdatae)   # subject IDs
+
+# ensure rownames align
+rownames(mat)   <- rownames(hdatae)          # subjects
+hmeta           <- hdatae[, c("sex","mechanical_ventilation")]
+rownames(hmeta) <- rownames(hdatae)          # subjects
+
+# Factors
+hmeta$sex <- factor(hmeta$sex, levels = c("Male","Female"))
+hmeta$mechanical_ventilation <- factor(hmeta$mechanical_ventilation,
+                                       levels = c("No","Yes"))
+
+colnames(hmeta) <- c("Sex", "Ventilation")
+
+# Make sure ann_colors keys match (chatgpt debug for annotation error)
+ann_colors <- list(
+  Sex = c(Male = "steelblue", Female = "tomato"),
+  Ventilation = c(No = "darkgreen", Yes = "darkred")
+)
+
+pheatmap(mat,
+         annotation_row = hmeta,          # ✅ row annotation
+         annotation_colors = ann_colors,
+         show_rownames = FALSE,
+         border_color = NA)
+
+```
+```{r}
+unique(hmeta$mechanical_ventilation)
+```
+
+
+```{r}
+hmeta <- as.data.frame(hmeta)
+hmeta <- hmeta[rownames(mat), , drop = FALSE]
+names(hmeta) <- c("Sex","Ventilation")  # force simple, known names
+
+hmeta$Sex <- factor(trimws(as.character(hmeta$Sex)), levels = c("Female","Male"))
+hmeta$Ventilation <- factor(trimws(as.character(hmeta$Ventilation)), levels = c("No","Yes"))
+
+ann_colors <- list(
+  'Sex' = c(Female = "tomato", Male = "steelblue"),
+  'Ventilation' = c(No = "darkgreen", Yes = "darkred")
+)
+
+pheatmap(
+  mat,
+  clustering_distance_cols = "euclidean",
+  clustering_distance_rows = "euclidean",
+  annotation_row = hmeta,
+  annotation_colors = ann_colors,
+  show_rownames = FALSE,
+  border_color = NA
+)
+```
+```{r}
+print(colnames(hmeta))
+print(names(ann_colors))
+lapply(hmeta, levels)
+```
+```{r}
+head(aampm)
+
+# calculate mean AAMP expression by Charlson score
+avg_data <- aampm %>%
+  group_by(charlson_score) %>%
+  summarise(mean_aamp = mean(AAMP, na.rm = TRUE))
+
+# Lollipop chart
+ggplot(avg_data, aes(x = charlson_score, y = mean_aamp)) +
+  geom_segment(aes(xend = charlson_score, y = 0, yend = mean_aamp), 
+               color = "grey") +
+  geom_point(color = "red", size = 3) +
+  scale_x_continuous(breaks = 0:11) +
+  labs(title = "Average AAMP Expression by Charlson Score",
+       x = "Charlson Score",
+       y = "Average AAMP Expression") +
+  theme_ipsum()
+
+head(aampm)
+
+```
+```{r}
+unique(aampm$charlson_score)
+```
+
+```{r}
+#format additional columns for summary table
+tcols <- c("ferritin.ng.ml.", "procalcitonin.ng.ml..", "age", "ventilator.free_days", "sex", "mechanical_ventilation", "icu_status", "disease_status")
+num_cols <- c("ferritin.ng.ml.", "procalcitonin.ng.ml..", "lactate.mmol.l.", "age", "ventilator.free_days")
+#select relevant cols, use ~ to safely convert to numeric if there are factors (chatgpt)
+tdata <- Fdata %>%
+  select(all_of(tcols)) %>%  
+  mutate(across(any_of(num_cols), ~ as.numeric(as.character(.x))))
+```
+```{r}
+#check for normality
+hist(tdata$lactate.mmol.l.)
+#use median since numerics are non-normal (skewed)
+```
+
+```{r}
+#Next few code blocks checks for summary stats
+summary(tdata)
+```
+```{r}
+sd(tdata$age, na.rm = TRUE)
+```
+
+```{r}
+#Ex. filter on diseased
+fild<- tdata %>%
+  filter(disease_status == "disease state: non-COVID-19")
+
+summary(fild)
+
+```
+```{r}
+sd(fild$age, na.rm = TRUE)
+
+```
+```{r}
+fild %>%
+  count(sex)
+
+```
+```{r}
+hist(fild$ferritin.ng.ml.)
+```
+
+```{r}
+#generate citations
+toBibtex(citation("tidyr"))
+toBibtex(citation("dplyr"))
+toBibtex(citation("janitor"))
+toBibtex(citation("hrbrthemes"))
+toBibtex(citation("ggplot2"))
+toBibtex(citation("pheatmap"))
+
 ```
 
