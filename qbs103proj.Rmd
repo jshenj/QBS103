@@ -28,6 +28,7 @@ meta <- read.csv("QBS103_GSE157103_series_matrix-1.csv")
 ```
 
 ```{r}
+#number of genes
 nrow(data)
 
 ```
@@ -265,9 +266,9 @@ genAllPlots(genes, "ferritin.ng.ml.", "mechanical_ventilation", "sex", multigene
 ```
 NEED CHANGE CAPITALIZATION
 
-```{r}
-head(trans)
-```
+PART 3 STARTS HERE:
+
+
 ```{r}
 #select genes with most variance
 
@@ -309,7 +310,7 @@ hdata <- hdata %>%
 # Log2-normalize data for plotting
 hdata[top10] <- lapply(hdata[top10], log2)
 
-head(hdatae)
+#head(hdatae)
 ```
 ```{r}
 #install.packages('pheatmap')
@@ -386,6 +387,7 @@ print(colnames(hmeta))
 print(names(ann_colors))
 lapply(hmeta, levels)
 ```
+
 ```{r}
 head(aampm)
 
